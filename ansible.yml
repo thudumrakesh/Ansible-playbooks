@@ -1,0 +1,118 @@
+---
+- hosts: localhost
+  become: yes
+  tasks:
+    - name: Create VPC
+      ec2_vpc_net:
+        aws_access_key: ""
+        aws_secret_key: ""
+
+        cidr_block: "10.0.0.0/16"
+        name: rakeshvpc
+        region: "eu-north-1"
+        state: present
+      register: vpc_result
+
+    # Create Internet Gateway
+    - ec2_vpc_igw:
+        aws_access_key: ""
+        aws_secret_key: ""
+        vpc_id: "{{ vpc_result.vpc.id }}"
+        region: "eu-north-1"
+        state: present
+        tags:
+          Name: rakeshigw
+      register: igw_result
+
+    # Create subnets
+    - ec2_vpc_subnet:
+        aws_access_key: ""
+        aws_secret_key: ""
+        vpc_id: "{{ vpc_result.vpc.id }}"
+        region: "eu-north-1"
+        az: "eu-north-1a"
+        state: present
+        cidr: "10.0.1.0/24"
+        map_public: yes
+        resource_tags:
+          Name: pubsubnet
+      register: pubsubnet_result
+
+    - ec2_vpc_subnet:
+        aws_access_key: ""
+        aws_secret_key: ""
+        vpc_id: "{{ vpc_result.vpc.id }}"
+        cidr: "10.0.2.0/24"
+        az: "eu-north-1b"
+        region: "eu-north-1"
+        state: present
+        map_public: no
+        resource_tags:
+          Name: pvtsubnet
+      register: pvtsubnet_result
+
+    # Security Group
+    - ec2_group:
+        aws_access_key: ""
+        aws_secret_key: ""
+        vpc_id: "{{ vpc_results.vpc.id }}"
+        region: "eu-north-1"
+        name: ansible
+        description: allow
+        tags:
+          Name:
+        rules:
+          - proto: tcp
+            from_port: 80
+            to_port: 80
+            cidr_ip: "0.0.0.0/0"
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: "0.0.0.0/0"
+        rules_egress:
+          - proto: all
+            cidr_ip: 0.0.0.0/0
+      register: security_groups
+
+    # Route Tables
+    - ec2_vpc_route_table:
+        aws_access_key: ""
+        aws_secret_key: ""
+        vpc_id: "{{ vpc_results.vpc.id }}"
+        region: "eu-north-1"
+        state: present
+        tags:
+          Name: route1
+        subnets: ["{{ pubsubnet_result.subnet.id }}"]
+        route:
+          - dest: "0.0.0.0/0"
+            gateway_id: "{{ igw_result.gateway.id }}"
+      register: pubroute_table_result
+
+    - ec2_vpc_route_table:
+        aws_access_key: ""
+        aws_secret_key: ""
+        vpc_id: "{{ vpc_results.vpc.id }}"
+        region: "eu-north-1"
+        state: present
+        tags:
+          Name: route2
+        subnets: ["{{ pvtsubnet_result.subnet.id }}"]
+
+    # EC2
+    - ec2:
+        image: "ami-0f0ec0d37d04440e3"
+        instance_type: "t3.micro"
+        region: "eu-north-1"
+        wait: true
+        count: 1
+        state: present
+        vpc_subnet_id: "{{ pubsubnet_result.subnet.id }}"
+        assign_public_ip: yes
+        group_id: "{{ sg_result.group.id }}"
+        aws_access_key: ""
+        aws_secret_key: ""
+        instance_tags:
+          Name: My_ansible
+      register: ec2_result
