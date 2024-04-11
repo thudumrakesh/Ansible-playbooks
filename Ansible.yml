@@ -1,5 +1,4 @@
-
-  ---
+---
 - hosts: localhost
   become: yes
 
@@ -85,4 +84,42 @@
     # Security group
     - ec2_group:
         aws_access_key: "{{ aws_access_key }}"
-        aws
+        aws_secret_key: "{{ aws_secret_key }}"
+        vpc_id: "{{ vpc_result.vpc.id }}"
+        region: "us-east-2"
+        name: "ansible"
+        description: "allow"
+        tags:
+          Name:
+        rules:
+          - proto: tcp
+            from_port: 80
+            to_port: 80
+            cidr_ip: "0.0.0.0/0"
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: "0.0.0.0/0"
+        rules_egress:
+          - proto: all
+            cidr_ip: "0.0.0.0/0"
+
+    # EC2 instance
+    - ec2:
+        image: "ami-00cda30cf72311684"
+        instance_type: "t2.micro"
+        region: "us-east-2"
+        wait: true
+        count: 1
+        state: present
+        vpc_subnet_id: "{{ pubsubnet_result.subnet.id }}"
+        assign_public_ip: yes
+        group_id: "{{ security_groups.group_id }}"
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        instance_tags:
+          Name: "My_ansible"
+
+
+ 
+      
