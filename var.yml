@@ -1,34 +1,140 @@
-vars:
-  aws_credentials:
-    aws_access_key: "---"
-    aws_secret_key: "---"
-  title: "ARTH"
-  vpc:
-    name: "rakeshvpc"
-    cidr_block: "10.0.0.0/16"
-  igw_name: "rakeshigw"
-  subnets:
-    - name: "ansiblepub"
-      cidr_block: "10.0.1.0/24"
-    - name: "ansiblepvt"
-      cidr_block: "10.0.2.0/24"
-  route_tables:
-    - name: "route1"
-      routes:
-        - destination_cidr_block: "0.0.0.0/0"
-          gateway: "{{ igw_name }}"
-    - name: "route2"
-      routes: []
-  security_group:
-    name: "ansible_sg"
-    ingress_rules:
-      - cidr_block: "0.0.0.0/0"
-        port: 22
-  region: "us-east-2"
-  availability_zones:
-    - "us-east-2a"
-    - "us-east-2b"
-  ec2_instance:
+
+  ---
+- hosts: localhost
+  become: yes
+
+  vars:
+    aws_credentials:
+      aws_access_key: "YOUR_ACCESS_KEY"
+      aws_secret_key: "YOUR_SECRET_KEY"
+    vpc_name: "rakeshvpc"
+    vpc_cidr_block: "10.0.0.0/16"
+    igw_name: "rakeshigw"
+    pubsubnet_name: "ansiblepub"
+    pubsubnet_cidr_block: "10.0.1.0/24"
+    pvtsubnet_name: "ansiblepvt"
+    pvtsubnet_cidr_block: "10.0.2.0/24"
+    pubroute_table_name: "route1"
+    pvtroute_table_name: "route2"
+    security_group_name: "ansible_sg"
+    port22_cidr_block: "0.0.0.0/0"
+    region: "us-east-2"
+    pubzone: "us-east-2a"
+    pvtzone: "us-east-2b"
     image_id: "ami-00cda30cf72311684"
     instance_type: "t2.micro"
     instance_name: "My_ansible"
+
+  tasks:
+    - name: Create VPC
+      ec2_vpc_net:
+        aws_access_key: "{{ aws_credentials.aws_access_key }}"
+        aws_secret_key: "{{ aws_credentials.aws_secret_key }}"
+        cidr_block: "{{ vpc_cidr_block }}"
+        name: "{{ vpc_name }}"
+        region: "{{ region }}"
+        state: present
+      register: vpc_result
+
+    # Create Internet Gateway
+    - ec2_vpc_igw:
+        aws_access_key: "{{ aws_credentials.aws_access_key }}"
+        aws_secret_key: "{{ aws_credentials.aws_secret_key }}"
+        vpc_id: "{{ vpc_result.vpc.id }}"
+        region: "{{ region }}"
+        state: present
+        tags:
+          Name: "{{ igw_name }}"
+      register: igw_result
+
+    # Create subnets
+    - ec2_vpc_subnet:
+        aws_access_key: "{{ aws_credentials.aws_access_key }}"
+        aws_secret_key: "{{ aws_credentials.aws_secret_key }}"
+        vpc_id: "{{ vpc_result.vpc.id }}"
+        region: "{{ region }}"
+        az: "{{ pubzone }}"
+        state: present
+        cidr: "{{ pubsubnet_cidr_block }}"
+        map_public: yes
+        resource_tags:
+          Name: "{{ pubsubnet_name }}"
+      register: pubsubnet_result
+
+    - ec2_vpc_subnet:
+        aws_access_key: "{{ aws_credentials.aws_access_key }}"
+        aws_secret_key: "{{ aws_credentials.aws_secret_key }}"
+        vpc_id: "{{ vpc_result.vpc.id }}"
+        region: "{{ region }}"
+        az: "{{ pvtzone }}"
+        state: present
+        cidr: "{{ pvtsubnet_cidr_block }}"
+        map_public: no
+        resource_tags:
+          Name: "{{ pvtsubnet_name }}"
+      register: pvtsubnet_result
+
+    # Create route table
+    - ec2_vpc_route_table:
+        aws_access_key: "{{ aws_credentials.aws_access_key }}"
+        aws_secret_key: "{{ aws_credentials.aws_secret_key }}"
+        vpc_id: "{{ vpc_result.vpc.id }}"
+        region: "{{ region }}"
+        state: present
+        tags:
+          Name: "{{ pubroute_table_name }}"
+        subnets: "{{ pubsubnet_result.subnet.id }}"
+        routes:
+          - dest: "0.0.0.0/0"
+            gateway_id: "{{ igw_result.gateway_id }}"
+      register: pubroute_table_result
+
+    # Private route table
+    - ec2_vpc_route_table:
+        aws_access_key: "{{ aws_credentials.aws_access_key }}"
+        aws_secret_key: "{{ aws_credentials.aws_secret_key }}"
+        vpc_id: "{{ vpc_result.vpc.id }}"
+        region: "{{ region }}"
+        state: present
+        tags:
+          Name: "{{ pvtroute_table_name }}"
+        subnets: ["{{ pvtsubnet_result.subnet.id }}"]
+
+    # Security group
+    - ec2_group:
+        aws_access_key: "{{ aws_credentials.aws_access_key }}"
+        aws_secret_key: "{{ aws_credentials.aws_secret_key }}"
+        vpc_id: "{{ vpc_result.vpc.id }}"
+        region: "{{ region }}"
+        name: "{{ security_group_name }}"
+        description: "allow"
+        tags:
+          Name: "{{ security_group_name }}"
+        rules:
+          - proto: tcp
+            from_port: 80
+            to_port: 80
+            cidr_ip: "{{ port22_cidr_block }}"
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: "{{ port22_cidr_block }}"
+        rules_egress:
+          - proto: all
+            cidr_ip: "{{ port22_cidr_block }}"
+
+    # EC2 instance
+    - ec2:
+        image: "{{ image_id }}"
+        instance_type: "{{ instance_type }}"
+        region: "{{ region }}"
+        wait: true
+        count: 1
+        state: present
+        vpc_subnet_id: "{{ pubsubnet_result.subnet.id }}"
+        assign_public_ip: yes
+        group_id: "{{ security_groups.group_id }}"
+        aws_access_key: "{{ aws_credentials.aws_access_key }}"
+        aws_secret_key: "{{ aws_credentials.aws_secret_key }}"
+        instance_tags:
+          Name: "{{ instance_name }}"
