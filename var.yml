@@ -24,7 +24,12 @@
     image_id: "ami-00cda30cf72311684"
     instance_type: "t2.micro"
     instance_name: "My_ansible"
-
+    user_data: |
+      #!bin/bash
+      sudo yum iy install git httpd
+      git clone <url> /var/www/html
+      sudo systemctl start httpd
+      sudo systemctl enable httpd
   tasks:
     - name: Create VPC
       ec2_vpc_net:
@@ -123,7 +128,7 @@
           - proto: all
             cidr_ip: "{{ port22_cidr_block }}"
 
-    # EC2 instance
+    # EC2 instanceuser_data
     - ec2:
         image: "{{ image_id }}"
         instance_type: "{{ instance_type }}"
@@ -134,6 +139,7 @@
         vpc_subnet_id: "{{ pubsubnet_result.subnet.id }}"
         assign_public_ip: yes
         group_id: "{{ security_groups.group_id }}"
+        user_data: "{{ user_data }}"
         aws_access_key: "{{ aws_credentials.aws_access_key }}"
         aws_secret_key: "{{ aws_credentials.aws_secret_key }}"
         instance_tags:
