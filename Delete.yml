@@ -1,0 +1,86 @@
+---
+hosts: localhost
+become: yes
+tasks:
+  # Terminate EC2 instance
+  - name: Terminate EC2 instance
+    ec2:
+      aws_access_key: "YOUR_ACCESS_KEY_HERE"
+      aws_secret_key: "YOUR_SECRET_KEY_HERE"
+      region: "us-east-2"
+      instance_ids:
+        - "i-Oa7aa2e08f19c6d37"
+      state: absent
+
+  # Delete security group
+  - name: Delete security group
+    ec2_group:
+      aws_access_key: "YOUR_ACCESS_KEY_HERE"
+      aws_secret_key: "YOUR_SECRET_KEY_HERE"
+      region: "us-east-2"
+      group_id: "sg-Odcc09832c56a4309"
+      state: absent
+
+  # Delete private route table
+  - name: Delete private route table
+    ec2_vpc_route_table:
+      aws_access_key: "YOUR_ACCESS_KEY_HERE"
+      aws_secret_key: "YOUR_SECRET_KEY_HERE"
+      region: "us-east-2"
+      route_table_id: "rtb-05803939f7ead8782"
+      vpc_id: "vpc-08488e809bef1a065"
+      state: absent
+
+  # Delete public route table
+  - name: Delete public route table
+    ec2_vpc_route_table:
+      aws_access_key: "YOUR_ACCESS_KEY_HERE"
+      aws_secret_key: "YOUR_SECRET_KEY_HERE"
+      region: "us
+
+ # PRIVATE SUBNET #
+- name: Delete private subnet
+  ec2_vpc_subnet:
+    aws_access_key: "INSERT_YOUR_ACCESS_KEY_HERE"
+    aws_secret_key: "INSERT_YOUR_SECRET_KEY_HERE"
+    region: "us-east-2"
+    cidr: "10.0.2.0/24"
+    vpc_id: "vpc-08488e809bef1a065"
+    state: absent
+
+# PUBLIC SUBNET #
+- name: Delete public subnet
+  ec2_vpc_subnet:
+    aws_access_key: "INSERT_YOUR_ACCESS_KEY_HERE"
+    aws_secret_key: "INSERT_YOUR_SECRET_KEY_HERE"
+    region: "us-east-2"
+    cidr: "10.0.1.0/24"
+    vpc_id: "vpc-08488e809bef1a065"
+    state: absent
+
+# INTERNET GATEWAY #
+- name: Detach Internet Gateway
+  ec2_vpc_igw:
+    aws_access_key: "INSERT_YOUR_ACCESS_KEY_HERE"
+    aws_secret_key: "INSERT_YOUR_SECRET_KEY_HERE"
+    region: "us-east-2"
+    vpc_id: "vpc-08488e809bef1a065"
+    state: absent
+
+- name: Delete Internet Gateway
+  ec2_vpc_igw:
+    aws_access_key: "INSERT_YOUR_ACCESS_KEY_HERE"
+    aws_secret_key: "INSERT_YOUR_SECRET_KEY_HERE"
+    region: "us-east-2"
+    vpc_id: "vpc-08488e809befla065"
+    state: absent
+
+# VPC #
+- name: Delete VPC
+  ec2_vpc_net:
+    aws_access_key: "INSERT_YOUR_ACCESS_KEY_HERE"
+    aws_secret_key: "INSERT_YOUR_SECRET_KEY_HERE"
+    region: "us-east-2"
+    cidr_block: "10.0.0.0/16"
+    state: absent
+     
