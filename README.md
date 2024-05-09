@@ -55,6 +55,8 @@ Syntax check:ansible-playbook --syntax-check playbook.yml
 Encrypting a file with Ansible Vault:ansible-vault encrypt filename
 Decrypting a file with Ansible Vault:ansible-vault decrypt filename
 Edit an encrypted file with Ansible Vault:ansible-vault edit filename
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+![image](https://github.com/thudumrakesh/Ansible-playbooks/assets/144659414/fddb1ec3-2bb5-4b77-b10c-809fab5edabb)
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ![image](https://github.com/thudumrakesh/Ansible-playbooks/assets/144659414/6452b956-d436-4faf-9a24-35f1fd454479)
